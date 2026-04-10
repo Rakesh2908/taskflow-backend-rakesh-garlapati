@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    environment:
+      PORT: ${PORT:-8080}
+      BCRYPT_COST: ${BCRYPT_COST:-12}
+      # JWT_SECRET and DB_URL may be provided via environment or .env; if missing,
+      # the container entrypoint generates JWT_SECRET and constructs DB_URL.
+      JWT_SECRET: ${JWT_SECRET:-}
+      DB_URL: ${DB_URL:-}
+      POSTGRES_DB: ${POSTGRES_DB:-taskflow}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${PORT:-8080}:8080"
+    volumes:
+      - ./migrations:/migrations:ro
+
+volumes:
+  postgres_data:
+
